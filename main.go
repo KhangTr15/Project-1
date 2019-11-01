@@ -3,12 +3,12 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
-	"strings"
+	"text/template"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -19,8 +19,19 @@ type Welcome struct {
 	Time string
 }
 
-func main() {
+func runScript() {
+	//executing my script
+	//ssh -i "JOJO.pem" ubuntu@ec2-18-191-194-235.us-east-2.compute.amazonaws.com 'bash -s' < /home/ubuntu/project-1.sh
+	cmd := exec.Command("bash", "-c", "ssh -i \"JOJO.pem\" ubuntu@ec2-18-224-137-229.us-east-2.compute.amazonaws.com < "+os.Getenv("HOME")+"/project-1.sh")
+	//cmd := exec.Command("ssh", "-i", "'JOJO.pem'", "ubuntu@ec2-18-224-137-229.us-east-2.compute.amazonaws.com", "'bash -s", " /project-1.sh")
+	stdout, err := cmd.CombinedOutput()
+	if err != nil {
+		println(err.Error())
+	}
+	print(string(stdout))
+}
 
+func runSSH() {
 	//Create a function that does this
 	pemBytes, err := ioutil.ReadFile("/home/ubuntu/Documents/JOJO.pem")
 	if err != nil {
@@ -37,7 +48,7 @@ func main() {
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
-	conn, err := ssh.Dial("tcp", "ec2-18-191-194-235.us-east-2.compute.amazonaws.com:22", config)
+	conn, err := ssh.Dial("tcp", "ec2-18-224-137-229.us-east-2.compute.amazonaws.com:22", config)
 	if err != nil {
 		log.Fatalf("dial failed:%v", err)
 	}
@@ -49,22 +60,14 @@ func main() {
 	defer session.Close()
 	var stdoutBuf bytes.Buffer
 	session.Stdout = &stdoutBuf
-	err = session.Run("ls ")
+	err = session.Run("ls -l")
 	if err != nil {
 		log.Fatalf("Run failed:%v", err)
 	}
+	log.Printf(">%s", stdoutBuf)
+}
 
-	//executing my script
-	cmd := exec.Command("bash", "project-1.sh")
-	cmd.Stdin = strings.NewReader("")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err2 := cmd.Run()
-	if err != nil {
-		log.Fatal(err2)
-	}
-	fmt.Printf("Output \n", out.String())
-
+func runWebServer() {
 	//running web server
 	//Instantiate a Welcome struct object and pass in some random information.
 	//We shall get the name of the user as a query parameter from the URL
@@ -104,4 +107,10 @@ func main() {
 	//Print any errors from starting the webserver using fmt
 	fmt.Println("Listening")
 	fmt.Println(http.ListenAndServe(":8080", nil))
+}
+func main() {
+
+	runSSH()
+	runScript()
+	//runWebServer()
 }
